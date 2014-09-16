@@ -26,8 +26,6 @@ A wrapper for a HighStock chart.
 <polymer-element name="highstock-chart" attributes="chart compare">
   <template>
     <div id="chart"></div>
-    
-    <content id="dataSeries" select="highstock-chart-data"></content>
   </template>
 
   <script>
@@ -36,7 +34,7 @@ A wrapper for a HighStock chart.
        * The HighStock chart.
        *
        * @attribute chart
-       * @type StockChart
+       * @type Highcharts.StockChart
        */
       chart: null,
 
@@ -52,11 +50,7 @@ A wrapper for a HighStock chart.
       ready: function() {
         this.chart = new Highcharts.StockChart({
           chart: {
-            renderTo: this.$.chart,
-
-            events: {
-              load: this.chartReady_.bind(this)
-            }
+            renderTo: this.$.chart
           }
         });
       },
@@ -66,22 +60,6 @@ A wrapper for a HighStock chart.
           s.setCompare(this.compare);
         }.bind(this));
         this.chart.redraw();
-      },
-
-      chartReady_: function() {
-        this.bindChartDataElements_();
-      },
-
-      bindChartDataElements_: function() {
-        var chartDataElements = this.$.dataSeries.getDistributedNodes();
-
-        Array.prototype.forEach.call(chartDataElements, function(element) {
-          element.addEventListener('response-changed', this.handleResponseChanged_.bind(this));
-        }.bind(this));
-      },
-
-      handleResponseChanged_: function(evt) {
-        this.chart.addSeries(evt.target.getDataSeries());
       }
     });
   </script>

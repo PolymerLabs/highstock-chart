@@ -28,7 +28,9 @@ A data source element for Yahoo Finance historical data. To be used only within 
 -->
 <polymer-element name="highstock-chart-data" attributes="symbol startdate enddate">
   <template>
-    <yql-data query="{{query}}" response="{{response}}"></yql-data>
+    <template repeat="{{query in queries}}">
+      <yql-data query="{{query}}" on-core-response="{{handleResponse}}"></yql-data>
+    </template>
   </template>
 
   <script>
@@ -57,49 +59,101 @@ A data source element for Yahoo Finance historical data. To be used only within 
        */
       enddate: null,
 
-      query: null,
+      /**
+       * The HighStock chart series associated with this data source.
+       *
+       * @attribute series
+       * @type Highcharts.Series
+       */
+      series: null,
 
-      response: null,
+      /**
+       * The list of YQL queries.
+       *
+       * @attribute queries
+       * @type Array.<string>
+       */
+      queries: null,
 
       ready: function() {
-        this.buildQuery_();
+        this.reset_();
       },
 
       attributeChanged: function(attrName, oldVal, newVal) {
-        this.buildQuery_();
+        this.reset_();
       },
 
-      buildQuery_: function() {
-        this.query = "SELECT * FROM yahoo.finance.historicaldata WHERE symbol = '" +
-          this.symbol + "' and startDate = '" + this.startdate + "' and endDate = '" +
-          this.enddate + "'";
+      reset_: function() {
+        this.queries = [];
+
+        if (this.series) {
+          this.series.remove();
+          this.series = null;
+        }
+
+        this.buildQueries_();
       },
 
-      responseChanged: function() {
-        this.fire('response-changed')
+      buildQueries_: function() {
+        this.queries = [];
+
+        // Since YQL will only respond if the query results in less than 365 data points,
+        // we seperate each calendar year to its own request.
+        var start = new Date(this.startdate);
+        var end = new Date(this.enddate);
+        var startYear = start.getUTCFullYear();
+        var endYear = end.getUTCFullYear();
+
+        if (startYear === endYear) {
+          this.addQuery_(this.startdate, this.enddate);
+        } else {
+          this.addQuery_(endYear + '-01-01', this.enddate);
+          --endYear;
+
+          while (endYear > startYear) {
+            this.addQuery_(endYear + '-01-01', endYear + '-12-31');
+            --endYear;
+          }
+          
+          this.addQuery_(this.startdate, startYear + '-12-31');
+        }
       },
 
-      getDataSeries: function() {
-        var results = this.response.query.results;
+      addQuery_: function(startdate, enddate) {
+        var query = "SELECT * FROM yahoo.finance.historicaldata WHERE symbol = '" +
+          this.symbol + "' and startDate = '" + startdate + "' and endDate = '" +
+          enddate + "'";
+        this.queries.push(query);
+      },
+
+      handleResponse: function(evt, details) {
+        var results = details.response.query.results;
 
         if (results) {
-          // The response from <yql-data> comes in reverse-chronological order, so reverse it.
-          var quote = results.quote.reverse();
-
-          // HighStock expects data points to be an array of [timestamp, value] points.
-          var data = quote.map(function(q){
-            var timestamp = (new Date(q['Date'])).valueOf();
-            var value = parseFloat(q['Adj_Close']);
-            return [timestamp, value];
-          });
-
-          return {
-            data: data,
-            name: this.symbol
-          };
-        } else {
-          return null;
+          if (this.series) {
+            this.getData_(results).forEach(function(point) {
+              this.series.addPoint(point, false);
+            }.bind(this));
+            this.parentElement.chart.redraw();
+          } else {
+            this.series = this.parentElement.chart.addSeries({
+              data: this.getData_(results),
+              name: this.symbol
+            });
+          }
         }
+      },
+
+      getData_: function(results) {
+        // The response from <yql-data> comes in reverse-chronological order, so reverse it.
+        var quote = results.quote.reverse();
+
+        // HighStock expects data points to be an array of [timestamp, value] points.
+        return quote.map(function(q){
+          var timestamp = (new Date(q['Date'])).valueOf();
+          var value = parseFloat(q['Adj_Close']);
+          return [timestamp, value];
+        });
       }
     });
   </script>

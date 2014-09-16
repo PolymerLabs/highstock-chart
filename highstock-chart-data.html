@@ -1,0 +1,106 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../yql-data/yql-data.html">
+
+<!--
+A data source element for Yahoo Finance historical data. To be used only within a <highstock-chart> element.
+
+##### Example
+
+    <highstock-chart>
+      <highstock-chart-data
+        symbol="AAPL"
+        startdate="2010-01-01"
+        enddate="2010-12-31"></highstock-chart-data>
+    </highstock-chart>
+
+@element highstock-chart-data
+@blurb A data source element for Yahoo Finance historical data. To be used only within a <highstock-chart> element.
+@homepage https://polymerlabs.github.io/highstock-chart/
+-->
+<polymer-element name="highstock-chart-data" attributes="symbol startdate enddate">
+  <template>
+    <yql-data query="{{query}}" response="{{response}}"></yql-data>
+  </template>
+
+  <script>
+    Polymer({
+      /**
+       * The stock symbol.
+       *
+       * @attribute symbol
+       * @type string
+       */
+      symbol: null,
+
+      /**
+       * The start date in YYYY-MM-DD format.
+       *
+       * @attribute startdate
+       * @type string
+       */
+      startdate: null,
+
+      /**
+       * The end date in YYYY-MM-DD format.
+       *
+       * @attribute enddate
+       * @type string
+       */
+      enddate: null,
+
+      query: null,
+
+      response: null,
+
+      ready: function() {
+        this.buildQuery_();
+      },
+
+      attributeChanged: function(attrName, oldVal, newVal) {
+        this.buildQuery_();
+      },
+
+      buildQuery_: function() {
+        this.query = "SELECT * FROM yahoo.finance.historicaldata WHERE symbol = '" +
+          this.symbol + "' and startDate = '" + this.startdate + "' and endDate = '" +
+          this.enddate + "'";
+      },
+
+      responseChanged: function() {
+        this.fire('response-changed')
+      },
+
+      getDataSeries: function() {
+        var results = this.response.query.results;
+
+        if (results) {
+          // The response from <yql-data> comes in reverse-chronological order, so reverse it.
+          var quote = results.quote.reverse();
+
+          // HighStock expects data points to be an array of [timestamp, value] points.
+          var data = quote.map(function(q){
+            var timestamp = (new Date(q['Date'])).valueOf();
+            var value = parseFloat(q['Adj_Close']);
+            return [timestamp, value];
+          });
+
+          return {
+            data: data,
+            name: this.symbol
+          };
+        } else {
+          return null;
+        }
+      }
+    });
+  </script>
+</polymer-element>

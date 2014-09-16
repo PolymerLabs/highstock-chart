@@ -1,0 +1,88 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../yql-data/yql-data.html">
+<script src="highstock/adapters/standalone-framework.js"></script>
+<script src="highstock/highstock.js"></script>
+
+<!--
+A wrapper for a HighStock chart.
+
+##### Example
+
+    <highstock-chart></highstock-chart>
+
+@element highstock-chart
+@blurb A wrapper for a HighStock chart.
+@homepage https://polymerlabs.github.io/highstock-chart/
+-->
+<polymer-element name="highstock-chart" attributes="chart compare">
+  <template>
+    <div id="chart"></div>
+    
+    <content id="dataSeries" select="highstock-chart-data"></content>
+  </template>
+
+  <script>
+    Polymer({
+      /**
+       * The HighStock chart.
+       *
+       * @attribute chart
+       * @type StockChart
+       */
+      chart: null,
+
+      /**
+       * The compare mode of the chart. Can be null, 'percent', or 'value'.
+       *
+       * @attribute [compare]
+       * @type string
+       * @default null
+       */
+      compare: null,
+
+      ready: function() {
+        this.chart = new Highcharts.StockChart({
+          chart: {
+            renderTo: this.$.chart,
+
+            events: {
+              load: this.chartReady_.bind(this)
+            }
+          }
+        });
+      },
+
+      compareChanged: function() {
+        this.chart.series.forEach(function(s) {
+          s.setCompare(this.compare);
+        }.bind(this));
+        this.chart.redraw();
+      },
+
+      chartReady_: function() {
+        this.bindChartDataElements_();
+      },
+
+      bindChartDataElements_: function() {
+        var chartDataElements = this.$.dataSeries.getDistributedNodes();
+
+        Array.prototype.forEach.call(chartDataElements, function(element) {
+          element.addEventListener('response-changed', this.handleResponseChanged_.bind(this));
+        }.bind(this));
+      },
+
+      handleResponseChanged_: function(evt) {
+        this.chart.addSeries(evt.target.getDataSeries());
+      }
+    });
+  </script>
+</polymer-element>

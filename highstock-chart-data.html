@@ -76,21 +76,18 @@ A data source element for Yahoo Finance historical data. To be used only within 
       queries: null,
 
       ready: function() {
+        this.series = this.parentElement.chart.addSeries({});
         this.reset_();
       },
 
-      attributeChanged: function(attrName, oldVal, newVal) {
+      attributeChanged: function() {
         this.reset_();
       },
 
       reset_: function() {
         this.queries = [];
-
-        if (this.series) {
-          this.series.remove();
-          this.series = null;
-        }
-
+        this.series.name = this.symbol;
+        this.series.setData(null);
         this.buildQueries_();
       },
 
@@ -130,17 +127,11 @@ A data source element for Yahoo Finance historical data. To be used only within 
         var results = details.response.query.results;
 
         if (results) {
-          if (this.series) {
-            this.getData_(results).forEach(function(point) {
-              this.series.addPoint(point, false);
-            }.bind(this));
-            this.parentElement.chart.redraw();
-          } else {
-            this.series = this.parentElement.chart.addSeries({
-              data: this.getData_(results),
-              name: this.symbol
-            });
-          }
+          // For performance, redraw only after all points have been added to the series.
+          this.getData_(results).forEach(function(point) {
+            this.series.addPoint(point, false /* redraw */);
+          }.bind(this));
+          this.parentElement.chart.redraw();
         }
       },
 
@@ -148,7 +139,7 @@ A data source element for Yahoo Finance historical data. To be used only within 
         // The response from <yql-data> comes in reverse-chronological order, so reverse it.
         var quote = results.quote.reverse();
 
-        // HighStock expects data points to be an array of [timestamp, value] points.
+        // Highcharts expects data points to be an array of [timestamp, value] points.
         return quote.map(function(q){
           var timestamp = (new Date(q['Date'])).valueOf();
           var value = parseFloat(q['Adj_Close']);

@@ -1,0 +1,191 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+A single Highstock flag point. To be used only within a &lt;highstock-flag-series> element.
+
+##### Example
+
+    <highstock-chart>
+      <highstock-flag-series>
+        <highstock-flag x="1388563200000" label="A" text="Shown on hover"></highstock-flag>
+        <highstock-flag x="1391241600000" label="B" text="B on hover"></highstock-flag>
+      </highstock-flag-series>
+    </highstock-chart>
+
+@element highstock-flag
+@blurb A single Highstock flag point. To be used only within a &lt;highstock-flag-series> element.
+@homepage https://polymerlabs.github.io/highstock-chart/
+-->
+
+<polymer-element name="highstock-flag" attributes="x label text">
+  <template>
+  </template>
+
+  <script>
+    Polymer({
+      /**
+       * The point where the flag appears.
+       *
+       * @attribute x
+       * @type number
+       */
+      x: null,
+
+      /**
+       * The label of the flag on the chart.
+       *
+       * @attribute label
+       * @type string
+       */
+      label: null,
+
+      /**
+       * The text displayed when the flag is highlighted.
+       *
+       * @attribute text
+       * @type string
+       */
+      text: null,
+
+      point_: null,
+
+      attached: function() {
+        this.addPoint_();
+      },
+
+      detached: function() {
+        if (this.point_ && this.point_.remove) {
+          this.point_.remove();
+        }
+      },
+
+      attributeChanged: function() {
+        if (this.point_) {
+          this.point_.update({
+            x: parseInt(this.x, 10),
+            title: this.label,
+            text: this.text
+          });
+        }
+      },
+
+      select: function() {
+        this.point_.select();
+      },
+
+      addPoint_: function() {
+        var series = this.parentElement.getSeries();
+
+        if (!series) {
+          this.parentElement.addEventListener('series-ready', function() {
+            this.addPoint_();
+          }.bind(this));
+        } else {
+          var id = this.id || new Date().valueOf();
+          series.addPoint({
+            id: id,
+            x: parseInt(this.x, 10),
+            title: this.label,
+            text: this.text
+          });
+          this.point_ = series.chart.get(id);
+        }
+      }
+    });
+  </script>
+</polymer-element>
+
+<!--
+A wrapper for a Highstock flag series. To be used only within a &lt;highstock-chart> element.
+
+##### Example
+
+    <highstock-chart>
+      <highstock-flag-series>
+        <highstock-flag x="100001" label="A" text="Shown on hover"></highstock-flag>
+        <highstock-flag x="100002" label="B" text="B on hover"></highstock-flag>
+      </highstock-flag-series>
+    </highstock-chart>
+
+@element highstock-flag-series
+@blurb A wrapper for a Highstock flag series. To be used only within a &lt;highstock-chart> element.
+@homepage https://polymerlabs.github.io/highstock-chart/
+-->
+
+<!--
+Fired when the flag series is ready.
+
+@event series-ready
+-->
+
+<polymer-element name="highstock-flag-series" attributes="visible">
+  <template>
+  </template>
+
+  <script>
+    Polymer({
+      /**
+       * The visibility of the series.
+       *
+       * @attribute [visible]
+       * @type boolean
+       * @default true
+       */
+      visible: true,
+
+      series_: null,
+
+      attached: function() {
+        this.parentElement.addEventListener('chart-ready', function() {
+          this.fire('series-ready');
+        }.bind(this));
+      },
+
+      detached: function() {
+        if (this.series_) {
+          this.series_.remove();
+        }
+      },
+
+      visibleChanged: function() {
+        this.setVisible_();
+      },
+
+      getSeries: function() {
+        if (!this.series_) {
+          this.series_ = this.parentElement.addSeries({
+            type: 'flags',
+            color : '#7cb5ec',
+            states : {
+              select : {
+                fillColor : '#7cb5ec'
+              }
+            },
+            visible: this.visible
+          });
+        }
+        return this.series_;
+      },
+
+      clearData: function() {
+        if (this.series_) {
+          this.series_.setData([]);
+        }
+      },
+
+      setVisible_: function() {
+        if (this.series_) {
+          this.series_.setVisible(this.visible);
+        }
+      }
+    });
+  </script>
+</polymer-element>

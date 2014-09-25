@@ -1,0 +1,23 @@
+{
+  "name": "highstock-chart",
+  "version": "0.1.0",
+  "authors": [
+    "Keanu Lee <keanulee@google.com>"
+  ],
+  "description": "A wrapper for a HighStock chart.",
+  "keywords": [
+    "polymer",
+    "web-components",
+    "highstock",
+    "highcharts",
+    "yahoo",
+    "yql",
+    "finance"
+  ],
+  "main": "highstock-chart.html",
+  "homepage": "https://polymerlabs.github.io/highstock-chart/",
+  "dependencies": {
+    "polymer": "Polymer/polymer#>=0.4.0 <1.0.0",
+    "yql-data": "PolymerLabs/yql-data#master"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "highstock-chart",
+  "authors": [
+    "Keanu Lee <keanulee@google.com>"
+  ],
+  "description": "A wrapper for a HighStock chart.",
+  "keywords": [
+    "polymer",
+    "web-components",
+    "highstock",
+    "highcharts",
+    "yahoo",
+    "yql",
+    "finance"
+  ],
+  "main": "highstock-chart.html",
+  "homepage": "https://polymerlabs.github.io/highstock-chart/",
+  "dependencies": {
+    "polymer": "Polymer/polymer#>=0.4.0 <1.0.0",
+    "yql-data": "PolymerLabs/yql-data#master"
+  },
+  "_release": "d55ff88a73",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "d55ff88a73e6975e6992e1c6b87566dd17b3b71f"
+  },
+  "_source": "git://github.com/polymerlabs/highstock-chart.git",
+  "_target": "master",
+  "_originalSource": "polymerlabs/highstock-chart",
+  "_direct": true
+}

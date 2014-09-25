@@ -1,0 +1,172 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../yql-data/yql-data.html">
+
+<!--
+A data source element for Yahoo Finance historical data. To be used only within a &lt;highstock-chart> element.
+
+##### Example
+
+    <highstock-chart>
+      <yahoo-stock-series
+        symbol="AAPL"
+        startdate="2010-01-01"
+        enddate="2010-12-31"></yahoo-stock-series>
+    </highstock-chart>
+
+@element yahoo-stock-series
+@blurb A data source element for Yahoo Finance historical data. To be used only within a &lt;highstock-chart> element.
+@homepage https://polymerlabs.github.io/highstock-chart/
+-->
+<polymer-element name="yahoo-stock-series" attributes="symbol startdate enddate">
+  <template>
+    <template repeat="{{query in queries}}">
+      <yql-data query="{{query}}" on-core-response="{{handleResponse}}"></yql-data>
+    </template>
+  </template>
+
+  <script>
+    Polymer({
+      /**
+       * The stock symbol.
+       *
+       * @attribute symbol
+       * @type string
+       */
+      symbol: null,
+
+      /**
+       * The start date in YYYY-MM-DD format.
+       *
+       * @attribute startdate
+       * @type string
+       */
+      startdate: null,
+
+      /**
+       * The end date in YYYY-MM-DD format.
+       *
+       * @attribute enddate
+       * @type string
+       */
+      enddate: null,
+
+      /**
+       * The list of YQL queries that need to be made to cover the time range. Since
+       * YQL will only respond if the query results in less than 365 data points, we
+       * seperate each calendar year to its own request.
+       */
+      queries: null,
+
+      series_: null,
+
+      attached: function() {
+        this.reset_();
+      },
+
+      detached: function() {
+        if (this.series_) {
+          this.series_.remove();
+        }
+      },
+
+      attributeChanged: function() {
+        this.reset_();
+      },
+
+      reset_: function() {
+        this.resetSeries_();
+        this.buildQueries_();
+      },
+
+      resetSeries_: function() {
+        if (this.series_) {
+          this.series_.name = this.symbol;
+          this.series_.setData(null);
+        }
+      },
+
+      getSeries_: function() {
+        if (!this.series_) {
+          this.series_ = this.parentElement.addSeries({});
+          this.resetSeries_();
+        }
+        return this.series_;
+      },
+
+      buildQueries_: function() {
+        this.queries = [];
+
+        // Since YQL will only respond if the query results in less than 365 data points,
+        // we seperate each calendar year to its own request.
+        var start = new Date(this.startdate);
+        var end = new Date(this.enddate);
+        var startYear = start.getUTCFullYear();
+        var endYear = end.getUTCFullYear();
+
+        if (startYear === endYear) {
+          this.addQuery_(this.startdate, this.enddate);
+        } else {
+          this.addQuery_(endYear + '-01-01', this.enddate);
+          --endYear;
+
+          while (endYear > startYear) {
+            this.addQuery_(endYear + '-01-01', endYear + '-12-31');
+            --endYear;
+          }
+          
+          this.addQuery_(this.startdate, startYear + '-12-31');
+        }
+      },
+
+      addQuery_: function(startdate, enddate) {
+        var query = "SELECT * FROM yahoo.finance.historicaldata WHERE symbol = '" +
+          this.symbol + "' and startDate = '" + startdate + "' and endDate = '" +
+          enddate + "'";
+        this.queries.push(query);
+      },
+
+      handleResponse: function(evt, details) {
+        var series = this.getSeries_();
+
+        // If getSeries_ returns null, it means the chart is not ready yet. Listen for
+        // 'chart-ready' before trying to create the series again.
+        if (!series) {
+          this.parentElement.addEventListener('chart-ready', function() {
+            this.handleResponse(evt, details);
+          }.bind(this));
+
+        } else {
+          var results = details.response.query.results;
+          if (results) {
+
+            // For performance, redraw only after all points have been added to the series.
+            this.getData_(results).forEach(function(point) {
+              series.addPoint(point, false /* redraw */);
+            });
+            this.parentElement.redraw();
+          }
+        }
+      },
+
+      getData_: function(results) {
+        // The response from <yql-data> comes in reverse-chronological order, so reverse it.
+        var quote = results.quote.reverse();
+
+        // Highcharts expects data points to be an array of [timestamp, value] points.
+        return quote.map(function(q){
+          var timestamp = (new Date(q['Date'])).valueOf();
+          var value = parseFloat(q['Adj_Close']);
+          return [timestamp, value];
+        });
+      }
+    });
+  </script>
+</polymer-element>

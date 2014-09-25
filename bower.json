@@ -1,0 +1,7 @@
+{
+  "name": "highstock-chart#gh-pages",
+  "private": true,
+  "dependencies": {
+    "highstock-chart": "polymerlabs/highstock-chart#master"
+  }
+}

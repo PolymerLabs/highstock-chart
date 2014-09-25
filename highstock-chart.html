@@ -8,7 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../polymer/polymer.html">
-<link rel="import" href="../yql-data/yql-data.html">
 <script src="highstock/adapters/standalone-framework.js"></script>
 <script src="highstock/highstock.js"></script>
 
@@ -18,31 +17,41 @@ A wrapper for a HighStock chart.
 ##### Example
 
     <highstock-chart>
-      <highstock-chart-data
+      <yahoo-stock-series
         symbol="AAPL"
         startdate="2010-01-01"
-        enddate="2010-12-31"></highstock-chart-data>
+        enddate="2010-12-31"></yahoo-stock-series>
     </highstock-chart>
 
 @element highstock-chart
 @blurb A wrapper for a HighStock chart.
 @homepage https://polymerlabs.github.io/highstock-chart/
 -->
-<polymer-element name="highstock-chart" attributes="chart compare">
+
+<!--
+Fired when the chart is ready.
+
+@event chart-ready
+-->
+
+<!--
+Fired when the chart is clicked.
+
+@event chart-click
+-->
+
+<!--
+Fired when the chart is scrolled or zoomed.
+
+@event chart-resize
+-->
+<polymer-element name="highstock-chart" attributes="compare zoomdays">
   <template>
     <div id="chart"></div>
   </template>
 
   <script>
     Polymer({
-      /**
-       * The HighStock chart.
-       *
-       * @attribute chart
-       * @type Highcharts.StockChart
-       */
-      chart: null,
-
       /**
        * The compare mode of the chart. Can be null, 'percent', or 'value'.
        *
@@ -52,19 +61,160 @@ A wrapper for a HighStock chart.
        */
       compare: null,
 
-      ready: function() {
-        this.chart = new Highcharts.StockChart({
+      /**
+       * The default number of days to set the zoom.
+       *
+       * @attribute [zoomdays]
+       * @type number
+       * @default null
+       */
+      zoomdays: null,
+
+      /**
+       * The HighStock chart.
+       *
+       * @attribute chart_
+       * @type Highcharts.StockChart
+       */
+      chart_: null,
+
+      domReady: function() {
+        this.initChart_();
+        this.setZoomDays_();
+        this.fire('chart-ready');
+      },
+
+      /**
+       * `compare` attribute changed handler.
+       */
+      compareChanged: function() {
+        this.chart_.yAxis[0].setCompare(this.compare);
+      },
+
+      /**
+       * `zoomdays` attribute changed handler.
+       */
+      zoomdaysChanged: function() {
+        this.setZoomDays_();
+      },
+
+      /**
+       * Wrapper for chart.addSeries(); safe to call even if the chart is not ready yet.
+       */
+      addSeries: function(options, redraw, animation) {
+        if (this.chart_) {
+          options.compare = this.compare;
+          return this.chart_.addSeries(options, redraw, animation);
+        }
+        return null;
+      },
+
+      /**
+       * Wrapper for chart.redraw(); safe to call even if the chart is not ready yet.
+       */
+      redraw: function() {
+        if (this.chart_) this.chart_.redraw();
+      },
+
+      /**
+       * Wrapper for chart.xAxis[0].getExtremes(); safe to call even if the chart is not ready yet.
+       */
+      getExtremes: function() {
+        if (this.chart_) {
+          return this.chart_.xAxis[0].getExtremes();
+        }
+        return null;
+      },
+
+      /**
+       * Wrapper for chart.xAxis[0].setExtremes(); safe to call even if the chart is not ready yet.
+       */
+      setExtremes: function(min, max, redraw, animation) {
+        if (this.chart_) this.chart_.xAxis[0].setExtremes(min, max, redraw, animation);
+      },
+
+      initChart_: function() {
+        Highcharts.setOptions({
+          global: {
+            useUTC: false
+          }
+        });
+
+        this.chart_ = new Highcharts.StockChart({
           chart: {
             renderTo: this.$.chart
+          },
+
+          plotOptions: {
+            series: {
+              events: {
+                click: function(event) {
+                  this.fire('chart-click', event);
+                }.bind(this)
+              }
+            }
+          },
+
+          xAxis: {
+            events: {
+              afterSetExtremes: function(extremes) {
+                this.fire('chart-resize', extremes);
+              }.bind(this)
+            }
+          },
+
+          rangeSelector: {
+            allButtonsEnabled: true,
+
+            buttons: [{
+              type: 'day',
+              count: 1,
+              text: '1d'
+            }, {
+              type: 'day',
+              count: 5,
+              text: '5d'
+            }, {
+              type: 'month',
+              count: 1,
+              text: '1m'
+            }, {
+              type: 'month',
+              count: 3,
+              text: '3m'
+            }, {
+              type: 'month',
+              count: 6,
+              text: '6m'
+            }, {
+              type: 'ytd',
+              text: 'YTD'
+            }, {
+              type: 'year',
+              count: 1,
+              text: '1y'
+            }, {
+              type: 'year',
+              count: 5,
+              text: '5y'
+            }, {
+              type: 'year',
+              count: 10,
+              text: '10y'
+            }, {
+              type: 'all',
+              text: 'All'
+            }]
           }
         });
       },
 
-      compareChanged: function() {
-        this.chart.series.forEach(function(s) {
-          s.setCompare(this.compare);
-        }.bind(this));
-        this.chart.redraw();
+      setZoomDays_: function() {
+        if (this.zoomdays) {
+          var max = new Date().valueOf();
+          var min = max - this.zoomdays * 24 * 60 * 60 * 1000;
+          this.setExtremes(min, max);
+        }
       }
     });
   </script>

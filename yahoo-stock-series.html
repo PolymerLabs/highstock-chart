@@ -7,26 +7,25 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../yql-data/yql-data.html">
 
 <!--
-A data source element for Yahoo Finance historical data. To be used only within a <highstock-chart> element.
+A data source element for Yahoo Finance historical data. To be used only within a &lt;highstock-chart> element.
 
 ##### Example
 
     <highstock-chart>
-      <highstock-chart-data
+      <yahoo-stock-series
         symbol="AAPL"
         startdate="2010-01-01"
-        enddate="2010-12-31"></highstock-chart-data>
+        enddate="2010-12-31"></yahoo-stock-series>
     </highstock-chart>
 
-@element highstock-chart-data
-@blurb A data source element for Yahoo Finance historical data. To be used only within a <highstock-chart> element.
+@element yahoo-stock-series
+@blurb A data source element for Yahoo Finance historical data. To be used only within a &lt;highstock-chart> element.
 @homepage https://polymerlabs.github.io/highstock-chart/
 -->
-<polymer-element name="highstock-chart-data" attributes="symbol startdate enddate">
+<polymer-element name="yahoo-stock-series" attributes="symbol startdate enddate">
   <template>
     <template repeat="{{query in queries}}">
       <yql-data query="{{query}}" on-core-response="{{handleResponse}}"></yql-data>
@@ -60,24 +59,22 @@ A data source element for Yahoo Finance historical data. To be used only within 
       enddate: null,
 
       /**
-       * The HighStock chart series associated with this data source.
-       *
-       * @attribute series
-       * @type Highcharts.Series
-       */
-      series: null,
-
-      /**
-       * The list of YQL queries.
-       *
-       * @attribute queries
-       * @type Array.<string>
+       * The list of YQL queries that need to be made to cover the time range. Since
+       * YQL will only respond if the query results in less than 365 data points, we
+       * seperate each calendar year to its own request.
        */
       queries: null,
 
-      ready: function() {
-        this.series = this.parentElement.chart.addSeries({});
+      series_: null,
+
+      attached: function() {
         this.reset_();
+      },
+
+      detached: function() {
+        if (this.series_) {
+          this.series_.remove();
+        }
       },
 
       attributeChanged: function() {
@@ -85,10 +82,23 @@ A data source element for Yahoo Finance historical data. To be used only within 
       },
 
       reset_: function() {
-        this.queries = [];
-        this.series.name = this.symbol;
-        this.series.setData(null);
+        this.resetSeries_();
         this.buildQueries_();
+      },
+
+      resetSeries_: function() {
+        if (this.series_) {
+          this.series_.name = this.symbol;
+          this.series_.setData(null);
+        }
+      },
+
+      getSeries_: function() {
+        if (!this.series_) {
+          this.series_ = this.parentElement.addSeries({});
+          this.resetSeries_();
+        }
+        return this.series_;
       },
 
       buildQueries_: function() {
@@ -124,14 +134,25 @@ A data source element for Yahoo Finance historical data. To be used only within 
       },
 
       handleResponse: function(evt, details) {
-        var results = details.response.query.results;
+        var series = this.getSeries_();
 
-        if (results) {
-          // For performance, redraw only after all points have been added to the series.
-          this.getData_(results).forEach(function(point) {
-            this.series.addPoint(point, false /* redraw */);
+        // If getSeries_ returns null, it means the chart is not ready yet. Listen for
+        // 'chart-ready' before trying to create the series again.
+        if (!series) {
+          this.parentElement.addEventListener('chart-ready', function() {
+            this.handleResponse(evt, details);
           }.bind(this));
-          this.parentElement.chart.redraw();
+
+        } else {
+          var results = details.response.query.results;
+          if (results) {
+
+            // For performance, redraw only after all points have been added to the series.
+            this.getData_(results).forEach(function(point) {
+              series.addPoint(point, false /* redraw */);
+            });
+            this.parentElement.redraw();
+          }
         }
       },
 
